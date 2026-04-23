@@ -28,7 +28,6 @@ import com.rezzedup.discordsrv.staffchat.events.DiscordStaffChatMessageEvent;
 import com.rezzedup.discordsrv.staffchat.events.PlayerStaffChatMessageEvent;
 import com.rezzedup.discordsrv.staffchat.util.MappedPlaceholder;
 import com.rezzedup.discordsrv.staffchat.util.Strings;
-import community.leaf.configvalues.bukkit.DefaultYamlValue;
 import github.scarsz.discordsrv.DiscordSRV;
 import github.scarsz.discordsrv.dependencies.emoji.EmojiParser;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.Member;
@@ -58,14 +57,14 @@ public class MessageProcessor {
 	private void sendFormattedChatMessage(
 		@NullOr Object author,
 		ChatChannel channel,
-		DefaultYamlValue<String> format,
+		String format,
 		MappedPlaceholder placeholders
 	) {
 		if (Strings.isEmptyOrNull(placeholders.get("message"))) {
 			return;
 		}
 		
-		String formatted = plugin.messages().getOrDefault(format);
+		String formatted = format;
 		
 		if (plugin.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
 			@NullOr Player player = (author instanceof Player) ? (Player) author : null;
@@ -80,7 +79,7 @@ public class MessageProcessor {
 			
 			if (!profile.receivesStaffChatMessages(channel)) {
 				String reminder = Strings.colorful(placeholders.update(
-					plugin.messages().getOrDefault(MessagesConfig.LEFT_CHAT_NOTIFICATION_REMINDER))
+					plugin.messages().getOrDefault(plugin.messages().leftChatReminder(channel)))
 				);
 				
 				player.sendMessage(content);
@@ -131,11 +130,11 @@ public class MessageProcessor {
 		MappedPlaceholder placeholders = plugin.messages().placeholders(channel);
 		placeholders.map("message", "content", "text").to(event::getText);
 		
-		sendFormattedChatMessage(null, channel, MessagesConfig.IN_GAME_CONSOLE_FORMAT, placeholders);
+		sendFormattedChatMessage(null, channel, plugin.messages().getInGameConsoleFormat(channel), placeholders);
 		
 		if (plugin.isDiscordSrvHookEnabled()) {
 			String discordMessage = placeholders.update(
-				plugin.messages().getOrDefault(MessagesConfig.DISCORD_CONSOLE_FORMAT)
+				plugin.messages().getDiscordConsoleFormat(channel)
 			);
 			
 			sendToDiscord(channel, discord -> DiscordUtil.queueMessage(discord, discordMessage, true));
@@ -164,7 +163,7 @@ public class MessageProcessor {
 		MappedPlaceholder placeholders = plugin.messages().placeholders(author, channel);
 		placeholders.map("message", "content", "text").to(event::getText);
 		
-		sendFormattedChatMessage(author, channel, MessagesConfig.IN_GAME_PLAYER_FORMAT, placeholders);
+		sendFormattedChatMessage(author, channel, plugin.messages().getInGamePlayerFormat(channel), placeholders);
 		
 		if (plugin.isDiscordSrvHookEnabled()) {
 			sendToDiscord(channel, discord -> plugin.async().run(() ->
@@ -225,6 +224,6 @@ public class MessageProcessor {
 			}
 		}
 		
-		sendFormattedChatMessage(author, channel, MessagesConfig.IN_GAME_DISCORD_FORMAT, placeholders);
+		sendFormattedChatMessage(author, channel, plugin.messages().getInGameDiscordFormat(channel), placeholders);
 	}
 }
