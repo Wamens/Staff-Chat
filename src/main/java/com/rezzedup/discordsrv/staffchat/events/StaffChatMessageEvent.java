@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.events;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.ChatService;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -31,11 +32,13 @@ import java.util.Objects;
 public abstract class StaffChatMessageEvent<A, M> extends Event implements Cancellable {
 	private final A author;
 	private final M message;
+	private final ChatChannel channel;
 	private String text;
 	
-	public StaffChatMessageEvent(A author, M message, String text) {
+	public StaffChatMessageEvent(A author, M message, ChatChannel channel, String text) {
 		this.author = Objects.requireNonNull(author, "author");
 		this.message = Objects.requireNonNull(message, "message");
+		this.channel = Objects.requireNonNull(channel, "channel");
 		this.text = Objects.requireNonNull(text, "text");
 	}
 	
@@ -49,6 +52,10 @@ public abstract class StaffChatMessageEvent<A, M> extends Event implements Cance
 	
 	public final M getMessage() {
 		return message;
+	}
+	
+	public final ChatChannel getChannel() {
+		return channel;
 	}
 	
 	public final String getText() {

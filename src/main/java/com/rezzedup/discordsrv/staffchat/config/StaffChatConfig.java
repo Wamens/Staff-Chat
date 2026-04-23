@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 package com.rezzedup.discordsrv.staffchat.config;
 
 import com.github.zafarkhaja.semver.Version;
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import com.rezzedup.discordsrv.staffchat.StaffChatProfile;
 import com.rezzedup.util.constants.Aggregates;
@@ -139,6 +140,7 @@ public class StaffChatConfig extends YamlDataFile {
 	
 	private void playSound(
 		Player player,
+		ChatChannel channel,
 		DefaultYamlValue<Boolean> enabled,
 		DefaultYamlValue<Sound> sound,
 		DefaultYamlValue<Float> volume,
@@ -149,7 +151,7 @@ public class StaffChatConfig extends YamlDataFile {
 		}
 		
 		boolean sounds = plugin.data().getProfile(player)
-			.map(StaffChatProfile::receivesStaffChatSounds)
+			.map(profile -> profile.receivesStaffChatSounds(channel))
 			.orElse(true);
 		
 		if (sounds) {
@@ -162,11 +164,11 @@ public class StaffChatConfig extends YamlDataFile {
 		}
 	}
 	
-	public void playMessageSound(Player player) {
-		playSound(player, MESSAGE_SOUND_ENABLED, MESSAGE_SOUND_NAME, MESSAGE_SOUND_VOLUME, MESSAGE_SOUND_PITCH);
+	public void playMessageSound(Player player, ChatChannel channel) {
+		playSound(player, channel, MESSAGE_SOUND_ENABLED, MESSAGE_SOUND_NAME, MESSAGE_SOUND_VOLUME, MESSAGE_SOUND_PITCH);
 	}
 	
-	public void playNotificationSound(Player player) {
-		playSound(player, NOTIFICATION_SOUND_ENABLED, NOTIFICATION_SOUND_NAME, NOTIFICATION_SOUND_VOLUME, NOTIFICATION_SOUND_PITCH);
+	public void playNotificationSound(Player player, ChatChannel channel) {
+		playSound(player, channel, NOTIFICATION_SOUND_ENABLED, NOTIFICATION_SOUND_NAME, NOTIFICATION_SOUND_VOLUME, NOTIFICATION_SOUND_PITCH);
 	}
 }

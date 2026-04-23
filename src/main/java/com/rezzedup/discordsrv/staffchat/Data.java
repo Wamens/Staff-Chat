@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -53,7 +53,6 @@ public class Data extends YamlDataFile implements StaffChatData {
 		super(plugin.directory().resolve("data"), "staff-chat.data.yml");
 		this.plugin = plugin;
 		
-		// Load persistent toggles.
 		if (plugin.config().getOrDefault(StaffChatConfig.PERSIST_TOGGLES)) {
 			Sections.get(data(), PROFILES_PATH).ifPresent(section ->
 			{
@@ -66,14 +65,12 @@ public class Data extends YamlDataFile implements StaffChatData {
 			});
 		}
 		
-		// Start the save task.
 		task = plugin.async().every(2).minutes().run(() -> {
 			if (isUpdated()) {
 				save();
 			}
 		});
 		
-		// Update profiles of all online players when reloaded.
 		reloadsWith(() -> plugin.getServer().getOnlinePlayers().forEach(this::updateProfile));
 	}
 	
@@ -98,52 +95,54 @@ public class Data extends YamlDataFile implements StaffChatData {
 	
 	public void updateProfile(Player player) {
 		@NullOr Profile profile = profilesByUuid.get(player.getUniqueId());
+		boolean isStaff = Permissions.ACCESS.allows(player);
+		boolean isAdmin = Permissions.ADMIN.allows(player);
 		
-		if (Permissions.ACCESS.allows(player)) {
-			// Ensure that this staff member has an active profile.
+		if (isStaff || isAdmin) {
 			if (profile == null) {
 				profile = (Profile) getOrCreateProfile(player);
 			}
 			
-			// If leaving the staff chat is disabled...
 			if (!plugin.config().getOrDefault(StaffChatConfig.LEAVING_STAFFCHAT_ENABLED)) {
-				// ... and this staff member previously left the staff chat ...
-				if (profile.left != null) {
-					// Bring them back.
-					profile.receivesStaffChatMessages(true);
+				for (ChatChannel channel : ChatChannel.values()) {
+					if (channel.permission().allows(player) && profile.left(channel) != null) {
+						profile.receivesStaffChatMessages(channel, true);
+					}
 				}
 			}
-		} else {
-			// Not a staff member but has a loaded profile...
-			if (profile != null) {
-				// Notify that they're no longer talking in staff chat.
-				if (profile.automaticStaffChat()) {
-					profile.automaticStaffChat(false);
-				}
-				
-				// No longer staff, delete data.
-				profile.clearStoredProfileData();
-				
-				// Remove from the map.
-				profilesByUuid.remove(player.getUniqueId());
+			
+			if (!isStaff) {
+				profile.automaticStaffChat(ChatChannel.STAFF, false);
+				profile.receivesStaffChatMessages(ChatChannel.STAFF, true);
 			}
+			
+			if (!isAdmin) {
+				profile.automaticStaffChat(ChatChannel.ADMIN, false);
+				profile.receivesStaffChatMessages(ChatChannel.ADMIN, true);
+			}
+		} else if (profile != null) {
+			for (ChatChannel channel : ChatChannel.values()) {
+				if (profile.automaticStaffChat(channel)) {
+					profile.automaticStaffChat(channel, false);
+				}
+			}
+			
+			profile.clearStoredProfileData();
+			profilesByUuid.remove(player.getUniqueId());
 		}
 	}
 	
 	static class Profile implements StaffChatProfile {
-		static final YamlValue<Instant> AUTO_TOGGLE_DATE = YamlValue.ofInstant("toggles.auto").maybe();
-		
-		static final YamlValue<Instant> LEFT_TOGGLE_DATE = YamlValue.ofInstant("toggles.left").maybe();
-		
-		static final YamlValue<Boolean> MUTED_SOUNDS_TOGGLE = YamlValue.ofBoolean("toggles.muted-sounds").maybe();
-		
 		private final StaffChatPlugin plugin;
 		private final YamlDataFile yaml;
 		private final UUID uuid;
 		
-		private @NullOr Instant auto;
-		private @NullOr Instant left;
-		private boolean mutedSounds = false;
+		private @NullOr Instant staffAuto;
+		private @NullOr Instant staffLeft;
+		private boolean staffMutedSounds = false;
+		private @NullOr Instant adminAuto;
+		private @NullOr Instant adminLeft;
+		private boolean adminMutedSounds = false;
 		
 		Profile(StaffChatPlugin plugin, YamlDataFile yaml, UUID uuid) {
 			this.plugin = plugin;
@@ -153,15 +152,66 @@ public class Data extends YamlDataFile implements StaffChatData {
 			if (plugin.config().getOrDefault(StaffChatConfig.PERSIST_TOGGLES)) {
 				Sections.get(yaml.data(), path()).ifPresent(section ->
 				{
-					auto = AUTO_TOGGLE_DATE.get(section).orElse(null);
-					left = LEFT_TOGGLE_DATE.get(section).orElse(null);
-					mutedSounds = MUTED_SOUNDS_TOGGLE.get(section).orElse(false);
+					staffAuto = autoValue(ChatChannel.STAFF).get(section).orElse(null);
+					staffLeft = leftValue(ChatChannel.STAFF).get(section).orElse(null);
+					staffMutedSounds = mutedSoundsValue(ChatChannel.STAFF).get(section).orElse(false);
+					adminAuto = autoValue(ChatChannel.ADMIN).get(section).orElse(null);
+					adminLeft = leftValue(ChatChannel.ADMIN).get(section).orElse(null);
+					adminMutedSounds = mutedSoundsValue(ChatChannel.ADMIN).get(section).orElse(false);
 				});
 			}
 		}
 		
+		private static YamlValue<Instant> autoValue(ChatChannel channel) {
+			return YamlValue.ofInstant("toggles." + channel.key() + ".auto").maybe();
+		}
+		
+		private static YamlValue<Instant> leftValue(ChatChannel channel) {
+			return YamlValue.ofInstant("toggles." + channel.key() + ".left").maybe();
+		}
+		
+		private static YamlValue<Boolean> mutedSoundsValue(ChatChannel channel) {
+			return YamlValue.ofBoolean("toggles." + channel.key() + ".muted-sounds").maybe();
+		}
+		
 		String path() {
 			return PROFILES_PATH + "." + uuid;
+		}
+		
+		private @NullOr Instant auto(ChatChannel channel) {
+			return (channel == ChatChannel.ADMIN) ? adminAuto : staffAuto;
+		}
+		
+		private void auto(ChatChannel channel, @NullOr Instant value) {
+			if (channel == ChatChannel.ADMIN) {
+				adminAuto = value;
+			} else {
+				staffAuto = value;
+			}
+		}
+		
+		private @NullOr Instant left(ChatChannel channel) {
+			return (channel == ChatChannel.ADMIN) ? adminLeft : staffLeft;
+		}
+		
+		private void left(ChatChannel channel, @NullOr Instant value) {
+			if (channel == ChatChannel.ADMIN) {
+				adminLeft = value;
+			} else {
+				staffLeft = value;
+			}
+		}
+		
+		private boolean mutedSounds(ChatChannel channel) {
+			return (channel == ChatChannel.ADMIN) ? adminMutedSounds : staffMutedSounds;
+		}
+		
+		private void mutedSounds(ChatChannel channel, boolean value) {
+			if (channel == ChatChannel.ADMIN) {
+				adminMutedSounds = value;
+			} else {
+				staffMutedSounds = value;
+			}
 		}
 		
 		@Override
@@ -170,58 +220,67 @@ public class Data extends YamlDataFile implements StaffChatData {
 		}
 		
 		@Override
-		public Optional<Instant> sinceEnabledAutoChat() {
-			return Optional.ofNullable(auto);
+		public Optional<Instant> sinceEnabledAutoChat(ChatChannel channel) {
+			return Optional.ofNullable(auto(channel));
 		}
 		
 		@Override
-		public boolean automaticStaffChat() {
-			return auto != null;
+		public boolean automaticStaffChat(ChatChannel channel) {
+			return auto(channel) != null;
 		}
 		
 		@Override
-		public void automaticStaffChat(boolean enabled) {
-			if (plugin.events().call(new AutoStaffChatToggleEvent(this, enabled)).isCancelled()) {
+		public void automaticStaffChat(ChatChannel channel, boolean enabled) {
+			if (plugin.events().call(new AutoStaffChatToggleEvent(this, channel, enabled)).isCancelled()) {
 				return;
 			}
 			
-			auto = (enabled) ? Instant.now() : null;
+			auto(channel, (enabled) ? Instant.now() : null);
+			if (enabled) {
+				for (ChatChannel other : ChatChannel.values()) {
+					if (other != channel) {
+						auto(other, null);
+					}
+				}
+			}
+			
 			updateStoredProfileData();
 		}
 		
 		@Override
-		public Optional<Instant> sinceLeftStaffChat() {
-			return Optional.ofNullable(left);
+		public Optional<Instant> sinceLeftStaffChat(ChatChannel channel) {
+			return Optional.ofNullable(left(channel));
 		}
 		
 		@Override
-		public boolean receivesStaffChatMessages() {
-			// hasn't left the staff chat or leaving is disabled outright
-			return left == null || !plugin.config().getOrDefault(StaffChatConfig.LEAVING_STAFFCHAT_ENABLED);
+		public boolean receivesStaffChatMessages(ChatChannel channel) {
+			return left(channel) == null || !plugin.config().getOrDefault(StaffChatConfig.LEAVING_STAFFCHAT_ENABLED);
 		}
 		
 		@Override
-		public void receivesStaffChatMessages(boolean enabled) {
-			if (plugin.events().call(new ReceivingStaffChatToggleEvent(this, enabled)).isCancelled()) {
+		public void receivesStaffChatMessages(ChatChannel channel, boolean enabled) {
+			if (plugin.events().call(new ReceivingStaffChatToggleEvent(this, channel, enabled)).isCancelled()) {
 				return;
 			}
 			
-			left = (enabled) ? null : Instant.now();
+			left(channel, (enabled) ? null : Instant.now());
 			updateStoredProfileData();
 		}
 		
 		@Override
-		public boolean receivesStaffChatSounds() {
-			return !mutedSounds;
+		public boolean receivesStaffChatSounds(ChatChannel channel) {
+			return !mutedSounds(channel);
 		}
 		
 		@Override
-		public void receivesStaffChatSounds(boolean enabled) {
-			mutedSounds = !enabled;
+		public void receivesStaffChatSounds(ChatChannel channel, boolean enabled) {
+			mutedSounds(channel, !enabled);
+			updateStoredProfileData();
 		}
 		
 		boolean hasDefaultSettings() {
-			return auto == null && left == null && !mutedSounds;
+			return staffAuto == null && staffLeft == null && !staffMutedSounds
+				&& adminAuto == null && adminLeft == null && !adminMutedSounds;
 		}
 		
 		void clearStoredProfileData() {
@@ -244,11 +303,12 @@ public class Data extends YamlDataFile implements StaffChatData {
 			}
 			
 			ConfigurationSection section = Sections.getOrCreate(yaml.data(), path());
-			
-			AUTO_TOGGLE_DATE.set(section, auto);
-			LEFT_TOGGLE_DATE.set(section, left);
-			MUTED_SOUNDS_TOGGLE.set(section, mutedSounds);
-			
+			autoValue(ChatChannel.STAFF).set(section, staffAuto);
+			leftValue(ChatChannel.STAFF).set(section, staffLeft);
+			mutedSoundsValue(ChatChannel.STAFF).set(section, staffMutedSounds);
+			autoValue(ChatChannel.ADMIN).set(section, adminAuto);
+			leftValue(ChatChannel.ADMIN).set(section, adminLeft);
+			mutedSoundsValue(ChatChannel.ADMIN).set(section, adminMutedSounds);
 			yaml.updated(true);
 		}
 	}

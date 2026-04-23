@@ -20,41 +20,43 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.rezzedup.discordsrv.staffchat.events;
+package com.rezzedup.discordsrv.staffchat;
 
-import com.rezzedup.discordsrv.staffchat.ChatChannel;
-import com.rezzedup.discordsrv.staffchat.ChatService;
-import org.bukkit.entity.Player;
-import org.bukkit.event.HandlerList;
-
-@SuppressWarnings("unused")
-public class PlayerStaffChatMessageEvent extends StaffChatMessageEvent<Player, String> {
-	public PlayerStaffChatMessageEvent(Player author, ChatChannel channel, String text) {
-		super(author, text, channel, text);
+public enum ChatChannel {
+	STAFF("staff", "Staff", "staff chat", "staff-chat", Permissions.ACCESS),
+	ADMIN("admin", "Admin", "admin chat", "admin-chat", Permissions.ADMIN);
+	
+	private final String key;
+	private final String label;
+	private final String displayName;
+	private final String discordChannelName;
+	private final Permissions permission;
+	
+	ChatChannel(String key, String label, String displayName, String discordChannelName, Permissions permission) {
+		this.key = key;
+		this.label = label;
+		this.displayName = displayName;
+		this.discordChannelName = discordChannelName;
+		this.permission = permission;
 	}
 	
-	@Override
-	public final ChatService getSource() {
-		return ChatService.MINECRAFT;
+	public String key() {
+		return key;
 	}
 	
-	@Override
-	public final ChatService getDestination() {
-		return ChatService.DISCORD;
+	public String label() {
+		return label;
 	}
 	
-	//
-	//  - - - HandlerList boilerplate - - -
-	//
-	
-	public static final HandlerList HANDLERS = new HandlerList();
-	
-	@Override
-	public HandlerList getHandlers() {
-		return HANDLERS;
+	public String displayName() {
+		return displayName;
 	}
 	
-	public static HandlerList getHandlerList() {
-		return HANDLERS;
+	public String discordChannelName() {
+		return discordChannelName;
+	}
+	
+	public Permissions permission() {
+		return permission;
 	}
 }

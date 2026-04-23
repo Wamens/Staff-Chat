@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -127,16 +127,19 @@ public class Debugger {
 		debug(clazz).recordDebugLogEntry(() ->
 		{
 			@NullOr Plugin discordSrv = plugin.getServer().getPluginManager().getPlugin(StaffChatPlugin.DISCORDSRV);
-			@NullOr Object channel = plugin.getDiscordChannelOrNull();
+			@NullOr Object staffChannel = plugin.getDiscordChannelOrNull(ChatChannel.STAFF);
+			@NullOr Object adminChannel = plugin.getDiscordChannelOrNull(ChatChannel.ADMIN);
 			
 			boolean isDiscordSrvEnabled = discordSrv != null && discordSrv.isEnabled();
 			boolean isDiscordSrvHooked = plugin.isDiscordSrvHookEnabled();
-			boolean isChannelReady = channel != null;
+			boolean isStaffChannelReady = staffChannel != null;
+			boolean isAdminChannelReady = adminChannel != null;
 			
 			return "[Status: " + context + "] " +
 				"Is DiscordSRV installed and enabled? " + isDiscordSrvEnabled + " :: " +
 				"Is DiscordSRV hooked? " + isDiscordSrvHooked + " :: " +
-				"Is " + StaffChatPlugin.CHANNEL + " channel ready? " + isChannelReady + " (" + channel + ")";
+				"Is staff-chat channel ready? " + isStaffChannelReady + " (" + staffChannel + ") :: " +
+				"Is admin-chat channel ready? " + isAdminChannelReady + " (" + adminChannel + ")";
 		});
 	}
 	

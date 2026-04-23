@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -108,8 +108,12 @@ public class ManageStaffChatCommand implements CommandExecutor, TabCompleter {
 		
 		sender.sendMessage(colorful("&f- &7/staffchat &9Toggle automatic staff chat"));
 		sender.sendMessage(colorful("&f- &7/staffchat <message> &9Send a message to staff chat"));
+		sender.sendMessage(colorful("&f- &7/adminchat &9Toggle automatic admin chat"));
+		sender.sendMessage(colorful("&f- &7/adminchat <message> &9Send a message to admin chat"));
 		sender.sendMessage(colorful("&f- &7/leavestaffchat &9Leave the staff chat"));
 		sender.sendMessage(colorful("&f- &7/joinstaffchat &9Rejoin the staff chat"));
+		sender.sendMessage(colorful("&f- &7/leaveadminchat &9Leave the admin chat"));
+		sender.sendMessage(colorful("&f- &7/joinadminchat &9Rejoin the admin chat"));
 		sender.sendMessage(colorful("&f- &7/" + label.toLowerCase() + " reload &9Reload configs"));
 		sender.sendMessage(colorful("&f- &7/" + label.toLowerCase() + " debug &9Toggle debugging"));
 		

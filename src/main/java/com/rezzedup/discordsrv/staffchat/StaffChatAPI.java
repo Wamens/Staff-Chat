@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -36,17 +36,21 @@ public interface StaffChatAPI {
 	
 	boolean isDiscordSrvHookEnabled();
 	
-	@NullOr TextChannel getDiscordChannelOrNull();
+	@NullOr TextChannel getDiscordChannelOrNull(ChatChannel channel);
 	
-	void submitMessageFromConsole(String message);
+	void submitMessageFromConsole(String message, ChatChannel channel);
 	
-	void submitMessageFromPlayer(Player author, String message);
+	void submitMessageFromPlayer(Player author, String message, ChatChannel channel);
 	
-	void submitMessageFromDiscord(User author, Message message);
+	void submitMessageFromDiscord(User author, Message message, ChatChannel channel);
+	
+	default Stream<? extends Player> onlineChatParticipants(ChatChannel channel) {
+		return Bukkit.getOnlinePlayers().stream()
+			.filter(channel.permission()::allows)
+			.filter(player -> data().isReceivingChatMessages(player, channel));
+	}
 	
 	default Stream<? extends Player> onlineStaffChatParticipants() {
-		return Bukkit.getOnlinePlayers().stream()
-			.filter(Permissions.ACCESS::allows)
-			.filter(data()::isReceivingStaffChatMessages);
+		return onlineChatParticipants(ChatChannel.STAFF);
 	}
 }

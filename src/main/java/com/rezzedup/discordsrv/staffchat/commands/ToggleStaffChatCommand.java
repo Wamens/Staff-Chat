@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.commands;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -30,17 +31,19 @@ import org.bukkit.entity.Player;
 
 public class ToggleStaffChatCommand implements CommandExecutor {
 	private final StaffChatPlugin plugin;
+	private final ChatChannel channel;
+	private final boolean joining;
 	
-	public ToggleStaffChatCommand(StaffChatPlugin plugin) {
+	public ToggleStaffChatCommand(StaffChatPlugin plugin, ChatChannel channel, boolean joining) {
 		this.plugin = plugin;
+		this.channel = channel;
+		this.joining = joining;
 	}
 	
 	@Override
 	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
 		if (sender instanceof Player) {
-			// Either join or leave so...
-			plugin.data().getOrCreateProfile((Player) sender)
-				.receivesStaffChatMessages(command.getName().contains("join"));
+			plugin.data().getOrCreateProfile((Player) sender).receivesStaffChatMessages(channel, joining);
 		} else {
 			sender.sendMessage("Only players may run this command.");
 		}

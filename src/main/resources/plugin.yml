@@ -12,31 +12,47 @@ softdepend: [ DiscordSRV, PlaceholderAPI ]
 
 commands:
   staffchat:
-    aliases: [ adminchat, schat, achat, sc, ac, a ]
+    aliases: [ schat, sc ]
     description: Toggle or send a message to staff chat.
     permission: staffchat.access
     usage: |-
       /<command> - toggle automatic staff chat
       /<command> <message> - send a message to the staff chat
+  adminchat:
+    aliases: [ achat, ac, a ]
+    description: Toggle or send a message to admin chat.
+    permission: staffchat.admin
+    usage: |-
+      /<command> - toggle automatic admin chat
+      /<command> <message> - send a message to the admin chat
   managestaffchat:
     aliases: [ discordsrv-staff-chat, discordsrvstaffchat, discordstaffchat, discordadminchat, manageadminchat ]
     description: Manage and get information about DiscordSRV-Staff-Chat
     permission: staffchat.manage
     usage: /<command>
   leavestaffchat:
-    aliases: [ leaveadminchat ]
     description: Leave the staff chat (stop receiving messages).
     permission: staffchat.access
     usage: /<command>
+  leaveadminchat:
+    description: Leave the admin chat (stop receiving messages).
+    permission: staffchat.admin
+    usage: /<command>
   joinstaffchat:
-    aliases: [ joinadminchat ]
     description: Rejoin the staff chat (receive messages again).
     permission: staffchat.access
     usage: /<command>
+  joinadminchat:
+    description: Rejoin the admin chat (receive messages again).
+    permission: staffchat.admin
+    usage: /<command>
   togglestaffchatsounds:
-    aliases: [ toggleadminchatsounds ]
     description: Mute or unmute staff chat sounds for yourself.
     permission: staffchat.access
+    usage: /<command>
+  toggleadminchatsounds:
+    description: Mute or unmute admin chat sounds for yourself.
+    permission: staffchat.admin
     usage: /<command>
 
 permissions:
@@ -44,7 +60,10 @@ permissions:
     children:
       staffchat.manage: true
       staffchat.access: true
+      staffchat.admin: true
   staffchat.manage:
     description: Manage the staff chat plugin in-game (e.g. reloading)
   staffchat.access:
     descriptions: Send and receive messages via staff chat
+  staffchat.admin:
+    descriptions: Send and receive messages via admin chat

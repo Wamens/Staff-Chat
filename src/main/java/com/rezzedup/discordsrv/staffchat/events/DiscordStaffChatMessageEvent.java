@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.events;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.ChatService;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.Message;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.User;
@@ -29,8 +30,8 @@ import org.bukkit.event.HandlerList;
 
 @SuppressWarnings("unused")
 public class DiscordStaffChatMessageEvent extends StaffChatMessageEvent<User, Message> {
-	public DiscordStaffChatMessageEvent(User author, Message message, String text) {
-		super(author, message, text);
+	public DiscordStaffChatMessageEvent(User author, Message message, ChatChannel channel, String text) {
+		super(author, message, channel, text);
 	}
 	
 	@Override

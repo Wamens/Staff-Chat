@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.listeners;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import github.scarsz.discordsrv.api.Subscribe;
 import github.scarsz.discordsrv.api.events.DiscordGuildMessagePreProcessEvent;
@@ -36,11 +37,12 @@ public class DiscordStaffChatListener {
 	
 	@Subscribe
 	public void onDiscordChat(DiscordGuildMessagePreProcessEvent event) {
-		if (event.getChannel().equals(plugin.getDiscordChannelOrNull())) {
-			event.setCancelled(true); // Cancel this message from getting sent to global chat.
-			
-			// Handle this on the main thread next tick.
-			plugin.sync().run(() -> plugin.submitMessageFromDiscord(event.getAuthor(), event.getMessage()));
+		for (ChatChannel channel : ChatChannel.values()) {
+			if (event.getChannel().equals(plugin.getDiscordChannelOrNull(channel))) {
+				event.setCancelled(true);
+				plugin.sync().run(() -> plugin.submitMessageFromDiscord(event.getAuthor(), event.getMessage(), channel));
+				return;
+			}
 		}
 	}
 }

@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,7 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.listeners;
 
-import com.rezzedup.discordsrv.staffchat.Permissions;
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import com.rezzedup.discordsrv.staffchat.config.StaffChatConfig;
 import com.rezzedup.discordsrv.staffchat.events.AutoStaffChatToggleEvent;
@@ -46,36 +46,47 @@ public class PlayerStaffChatToggleListener implements Listener {
 	
 	@EventListener(ListenerOrder.FIRST)
 	public void onAutomaticChatFirst(AsyncPlayerChatEvent event) {
-		if (plugin.data().isAutomaticStaffChatEnabled(event.getPlayer())) {
-			event.setCancelled(true); // Cancel this message from getting sent to global chat.
-			// Handle message in a later listener order, allowing other plugins to modify the message.
+		Player player = event.getPlayer();
+		
+		for (ChatChannel channel : ChatChannel.values()) {
+			if (plugin.data().isAutomaticChatEnabled(player, channel)) {
+				event.setCancelled(true);
+				return;
+			}
 		}
 	}
 	
 	@EventListener(ListenerOrder.MONITOR)
 	public void onAutomaticChatMonitor(AsyncPlayerChatEvent event) {
 		Player player = event.getPlayer();
-		if (!plugin.data().isAutomaticStaffChatEnabled(player)) {
-			return;
+		@NullOr ChatChannel channel = null;
+		
+		for (ChatChannel option : ChatChannel.values()) {
+			if (plugin.data().isAutomaticChatEnabled(player, option)) {
+				channel = option;
+				break;
+			}
 		}
 		
-		event.setCancelled(true); // Cancel this message from getting sent to global chat.
-		// The event could've been uncancelled since cancelling it the first time.
+		if (channel == null) {
+			return;
+		}
+		final ChatChannel activeChannel = channel;
 		
-		if (Permissions.ACCESS.allows(player)) {
+		event.setCancelled(true);
+		
+		if (activeChannel.permission().allows(player)) {
 			plugin.debug(getClass()).log(event, () ->
-				"Player " + player.getName() + " has automatic staff-chat enabled"
+				"Player " + player.getName() + " has automatic " + activeChannel.displayName() + " enabled"
 			);
 			
-			// Handle this on the main thread next tick.
-			plugin.sync().run(() -> plugin.submitMessageFromPlayer(event.getPlayer(), event.getMessage()));
+			plugin.sync().run(() -> plugin.submitMessageFromPlayer(event.getPlayer(), event.getMessage(), activeChannel));
 		} else {
 			plugin.debug(getClass()).log(event, () ->
-				"Player " + player.getName() + " has automatic staff-chat enabled " +
-					"but they don't have permission to use the staff chat"
+				"Player " + player.getName() + " has automatic " + activeChannel.displayName() + " enabled " +
+					"but they don't have permission to use that chat"
 			);
 			
-			// Remove this non-staff profile (but in sync 'cus it calls an event).
 			plugin.sync().run(() -> {
 				plugin.data().updateProfile(player);
 				player.chat(event.getMessage());
@@ -91,7 +102,8 @@ public class PlayerStaffChatToggleListener implements Listener {
 		plugin.debug(getClass()).log(event, () -> {
 			String name = (player == null) ? "<Offline>" : player.getName();
 			String enabled = (event.isEnablingAutomaticChat()) ? "Enabled" : "Disabled";
-			return enabled + " automatic staff-chat for player: " + name + " (" + event.getProfile().uuid() + ")";
+			return enabled + " automatic " + event.getChannel().displayName() +
+				" for player: " + name + " (" + event.getProfile().uuid() + ")";
 		});
 		
 		if (player == null || event.isQuiet()) {
@@ -99,9 +111,9 @@ public class PlayerStaffChatToggleListener implements Listener {
 		}
 		
 		if (event.isEnablingAutomaticChat()) {
-			plugin.messages().notifyAutoChatEnabled(player);
+			plugin.messages().notifyAutoChatEnabled(player, event.getChannel());
 		} else {
-			plugin.messages().notifyAutoChatDisabled(player);
+			plugin.messages().notifyAutoChatDisabled(player, event.getChannel());
 		}
 	}
 	
@@ -123,14 +135,14 @@ public class PlayerStaffChatToggleListener implements Listener {
 		plugin.debug(getClass()).log(event, () -> {
 			String name = (player == null) ? "<Offline>" : player.getName();
 			return "Player: " + name + " (" + event.getProfile().uuid() + ") " +
-				"tried to leave the staff chat, but leaving is disabled in the config";
+				"tried to leave the " + event.getChannel().displayName() + ", but leaving is disabled in the config";
 		});
 		
 		if (player == null || event.isQuiet()) {
 			return;
 		}
 		
-		plugin.messages().notifyLeavingChatIsDisabled(player);
+		plugin.messages().notifyLeavingChatIsDisabled(player, event.getChannel());
 	}
 	
 	@EventListener(ListenerOrder.LAST)
@@ -141,7 +153,7 @@ public class PlayerStaffChatToggleListener implements Listener {
 		plugin.debug(getClass()).log(event, () -> {
 			String name = (player == null) ? "<Offline>" : player.getName();
 			String left = (event.isLeavingStaffChat()) ? "left" : "joined";
-			return "Player: " + name + " (" + event.getProfile().uuid() + ") " + left + " the staff-chat";
+			return "Player: " + name + " (" + event.getProfile().uuid() + ") " + left + " the " + event.getChannel().displayName();
 		});
 		
 		if (player == null || event.isQuiet()) {
@@ -149,12 +161,12 @@ public class PlayerStaffChatToggleListener implements Listener {
 		}
 		
 		boolean broadcastToEveryone =
-			event.getProfile().sinceLeftStaffChat().isPresent() != event.isLeavingStaffChat();
+			event.getProfile().sinceLeftStaffChat(event.getChannel()).isPresent() != event.isLeavingStaffChat();
 		
 		if (event.isLeavingStaffChat()) {
-			plugin.messages().notifyLeaveChat(player, broadcastToEveryone);
+			plugin.messages().notifyLeaveChat(player, event.getChannel(), broadcastToEveryone);
 		} else {
-			plugin.messages().notifyJoinChat(player, broadcastToEveryone);
+			plugin.messages().notifyJoinChat(player, event.getChannel(), broadcastToEveryone);
 		}
 	}
 }

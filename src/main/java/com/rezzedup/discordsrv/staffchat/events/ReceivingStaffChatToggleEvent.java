@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,12 +22,13 @@
  */
 package com.rezzedup.discordsrv.staffchat.events;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatProfile;
 import org.bukkit.event.HandlerList;
 
 public class ReceivingStaffChatToggleEvent extends ProfileToggleEvent {
-	public ReceivingStaffChatToggleEvent(StaffChatProfile profile, boolean toggleState) {
-		super(profile, toggleState);
+	public ReceivingStaffChatToggleEvent(StaffChatProfile profile, ChatChannel channel, boolean toggleState) {
+		super(profile, channel, toggleState);
 	}
 	
 	public boolean isJoiningStaffChat() {

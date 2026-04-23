@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.commands;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import com.rezzedup.discordsrv.staffchat.StaffChatProfile;
 import org.bukkit.command.Command;
@@ -32,9 +33,11 @@ import org.jetbrains.annotations.NotNull;
 
 public class ToggleStaffChatSoundsCommand implements CommandExecutor {
 	private final StaffChatPlugin plugin;
+	private final ChatChannel channel;
 	
-	public ToggleStaffChatSoundsCommand(StaffChatPlugin plugin) {
+	public ToggleStaffChatSoundsCommand(StaffChatPlugin plugin, ChatChannel channel) {
 		this.plugin = plugin;
+		this.channel = channel;
 	}
 	
 	@Override
@@ -42,8 +45,8 @@ public class ToggleStaffChatSoundsCommand implements CommandExecutor {
 		if (sender instanceof Player) {
 			Player player = (Player) sender;
 			StaffChatProfile profile = plugin.data().getOrCreateProfile(player);
-			boolean toggle = !profile.receivesStaffChatSounds();
-			profile.receivesStaffChatSounds(toggle);
+			boolean toggle = !profile.receivesStaffChatSounds(channel);
+			profile.receivesStaffChatSounds(channel, toggle);
 			
 			plugin.debug(getClass()).log(() -> String.format(
 				"Player: %s (%s) has %s receiving staff chat sounds",
@@ -51,9 +54,9 @@ public class ToggleStaffChatSoundsCommand implements CommandExecutor {
 			));
 			
 			if (toggle) {
-				plugin.messages().notifySoundsUnmuted(player);
+				plugin.messages().notifySoundsUnmuted(player, channel);
 			} else {
-				plugin.messages().notifySoundsMuted(player);
+				plugin.messages().notifySoundsMuted(player, channel);
 			}
 		} else {
 			sender.sendMessage("Only players may run this command.");

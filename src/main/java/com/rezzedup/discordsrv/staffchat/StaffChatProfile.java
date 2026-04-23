@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -32,24 +32,60 @@ import java.util.UUID;
 public interface StaffChatProfile {
 	UUID uuid();
 	
-	Optional<Instant> sinceEnabledAutoChat();
+	Optional<Instant> sinceEnabledAutoChat(ChatChannel channel);
 	
-	boolean automaticStaffChat();
+	boolean automaticStaffChat(ChatChannel channel);
 	
-	void automaticStaffChat(boolean enabled);
+	void automaticStaffChat(ChatChannel channel, boolean enabled);
 	
-	Optional<Instant> sinceLeftStaffChat();
+	Optional<Instant> sinceLeftStaffChat(ChatChannel channel);
 	
-	boolean receivesStaffChatMessages();
+	boolean receivesStaffChatMessages(ChatChannel channel);
 	
-	void receivesStaffChatMessages(boolean enabled);
+	void receivesStaffChatMessages(ChatChannel channel, boolean enabled);
 	
-	boolean receivesStaffChatSounds();
+	boolean receivesStaffChatSounds(ChatChannel channel);
 	
-	void receivesStaffChatSounds(boolean enabled);
+	void receivesStaffChatSounds(ChatChannel channel, boolean enabled);
+	
+	default Optional<Instant> sinceEnabledAutoChat() {
+		return sinceEnabledAutoChat(ChatChannel.STAFF);
+	}
+	
+	default boolean automaticStaffChat() {
+		return automaticStaffChat(ChatChannel.STAFF);
+	}
+	
+	default void automaticStaffChat(boolean enabled) {
+		automaticStaffChat(ChatChannel.STAFF, enabled);
+	}
+	
+	default Optional<Instant> sinceLeftStaffChat() {
+		return sinceLeftStaffChat(ChatChannel.STAFF);
+	}
+	
+	default boolean receivesStaffChatMessages() {
+		return receivesStaffChatMessages(ChatChannel.STAFF);
+	}
+	
+	default void receivesStaffChatMessages(boolean enabled) {
+		receivesStaffChatMessages(ChatChannel.STAFF, enabled);
+	}
+	
+	default boolean receivesStaffChatSounds() {
+		return receivesStaffChatSounds(ChatChannel.STAFF);
+	}
+	
+	default void receivesStaffChatSounds(boolean enabled) {
+		receivesStaffChatSounds(ChatChannel.STAFF, enabled);
+	}
 	
 	default void toggleAutomaticStaffChat() {
 		automaticStaffChat(!automaticStaffChat());
+	}
+	
+	default void toggleAutomaticChat(ChatChannel channel) {
+		automaticStaffChat(channel, !automaticStaffChat(channel));
 	}
 	
 	default Optional<Player> toPlayer() {

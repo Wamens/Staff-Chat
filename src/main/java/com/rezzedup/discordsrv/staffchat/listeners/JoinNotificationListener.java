@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.listeners;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.Permissions;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import com.rezzedup.discordsrv.staffchat.config.StaffChatConfig;
@@ -50,23 +51,25 @@ public class JoinNotificationListener implements Listener {
 		Deque<Runnable> reminders = new ArrayDeque<>();
 		
 		if (plugin.config().getOrDefault(StaffChatConfig.NOTIFY_IF_TOGGLE_ENABLED)) {
-			if (Permissions.ACCESS.allows(player)) {
-				if (plugin.data().isAutomaticStaffChatEnabled(player)) {
-					plugin.debug(getClass()).log(event, () ->
-						"Player " + event.getPlayer().getName() + " joined: " +
-							"reminding them that they have automatic staff-chat enabled"
-					);
+			for (ChatChannel channel : ChatChannel.values()) {
+				if (channel.permission().allows(player)) {
+					if (plugin.data().isAutomaticChatEnabled(player, channel)) {
+						plugin.debug(getClass()).log(event, () ->
+							"Player " + event.getPlayer().getName() + " joined: " +
+								"reminding them that they have automatic " + channel.displayName() + " enabled"
+						);
+						
+						reminders.add(() -> plugin.messages().notifyAutoChatEnabled(player, channel));
+					}
 					
-					reminders.add(() -> plugin.messages().notifyAutoChatEnabled(player));
-				}
-				
-				if (!plugin.data().isReceivingStaffChatMessages(player)) {
-					plugin.debug(getClass()).log(event, () ->
-						"Player " + event.getPlayer().getName() + " joined: " +
-							"reminding them that they previously left the staff-chat"
-					);
-					
-					reminders.add(() -> plugin.messages().notifyLeaveChat(player, false));
+					if (!plugin.data().isReceivingChatMessages(player, channel)) {
+						plugin.debug(getClass()).log(event, () ->
+							"Player " + event.getPlayer().getName() + " joined: " +
+								"reminding them that they previously left the " + channel.displayName()
+						);
+						
+						reminders.add(() -> plugin.messages().notifyLeaveChat(player, channel, false));
+					}
 				}
 			}
 		}

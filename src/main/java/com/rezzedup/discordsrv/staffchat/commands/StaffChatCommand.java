@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.commands;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -31,9 +32,11 @@ import org.bukkit.entity.Player;
 
 public class StaffChatCommand implements CommandExecutor {
 	private final StaffChatPlugin plugin;
+	private final ChatChannel channel;
 	
-	public StaffChatCommand(StaffChatPlugin plugin) {
+	public StaffChatCommand(StaffChatPlugin plugin, ChatChannel channel) {
 		this.plugin = plugin;
+		this.channel = channel;
 	}
 	
 	@Override
@@ -43,14 +46,14 @@ public class StaffChatCommand implements CommandExecutor {
 			if (!(sender instanceof Player)) {
 				return false;
 			}
-			plugin.data().getOrCreateProfile((Player) sender).toggleAutomaticStaffChat();
+			plugin.data().getOrCreateProfile((Player) sender).toggleAutomaticChat(channel);
 		} else {
 			String message = String.join(" ", args);
 			
 			if (sender instanceof Player) {
-				plugin.submitMessageFromPlayer((Player) sender, message);
+				plugin.submitMessageFromPlayer((Player) sender, message, channel);
 			} else if (sender instanceof ConsoleCommandSender) {
-				plugin.submitMessageFromConsole(message);
+				plugin.submitMessageFromConsole(message, channel);
 			} else {
 				sender.sendMessage("Unsupported command sender type: " + sender.getClass().getSimpleName());
 			}

@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,6 +23,7 @@
 package com.rezzedup.discordsrv.staffchat.config;
 
 import com.github.zafarkhaja.semver.Version;
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import com.rezzedup.discordsrv.staffchat.Updater;
 import com.rezzedup.discordsrv.staffchat.util.MappedPlaceholder;
@@ -57,16 +58,16 @@ public class MessagesConfig extends YamlDataFile {
 	public static final DefaultYamlValue<String> IN_GAME_PLAYER_FORMAT =
 		YamlValue.ofString("messages.in-game-formats.player")
 			.migrates(Migration.move("in-game-message-format"))
-			.defaults("%prefix% %name%&7:&f %message%");
+			.defaults("%prefix% &8[%chat_label%]&r %name%&7:&f %message%");
 	
 	public static final DefaultYamlValue<String> IN_GAME_DISCORD_FORMAT =
 		YamlValue.ofString("messages.in-game-formats.discord")
 			.migrates(Migration.move("discord-message-format"))
-			.defaults("&9&ldiscord &f→ %prefix% %name%&7:&f %message%");
+			.defaults("&9&ldiscord &f-> %prefix% &8[%chat_label%]&r %name%&7:&f %message%");
 	
 	public static final DefaultYamlValue<String> IN_GAME_CONSOLE_FORMAT =
 		YamlValue.ofString("messages.in-game-formats.console")
-			.defaults("%prefix% [CONSOLE]&7:&f %message%");
+			.defaults("%prefix% &8[%chat_label%]&r [CONSOLE]&7:&f %message%");
 	
 	public static final DefaultYamlValue<String> DISCORD_CONSOLE_FORMAT =
 		YamlValue.ofString("messages.discord-formats.console")
@@ -75,57 +76,53 @@ public class MessagesConfig extends YamlDataFile {
 	public static final DefaultYamlValue<String> AUTO_ENABLED_NOTIFICATION =
 		YamlValue.ofString("notifications.automatic-staff-chat.enabled")
 			.migrates(Migration.move("enable-staff-chat"))
-			.defaults("%prefix% &2→&a &nEnabled&a automatic staff chat");
+			.defaults("%prefix% &2->&a &nEnabled&a automatic %chat_name%");
 	
 	public static final DefaultYamlValue<String> AUTO_DISABLED_NOTIFICATION =
 		YamlValue.ofString("notifications.automatic-staff-chat.disabled")
 			.migrates(Migration.move("disable-staff-chat"))
-			.defaults("%prefix% &4→&c &nDisabled&c automatic staff chat");
+			.defaults("%prefix% &4->&c &nDisabled&c automatic %chat_name%");
 	
 	public static final DefaultYamlValue<String> LEFT_CHAT_NOTIFICATION_SELF =
 		YamlValue.ofString("notifications.leave.self")
 			.defaults(
-				"%prefix% &4→&c You &nleft&c the staff chat&r\n" +
-					"&8&oYou won't receive any staff chat messages"
+				"%prefix% &4->&c You &nleft&c the %chat_name%&r\n" +
+					"&8&oYou won't receive any %chat_name% messages"
 			);
 	
 	public static final DefaultYamlValue<String> LEFT_CHAT_NOTIFICATION_OTHERS =
 		YamlValue.ofString("notifications.leave.others")
-			.defaults("%prefix% &4→&c %player% &nleft&c the staff chat");
+			.defaults("%prefix% &4->&c %player% &nleft&c the %chat_name%");
 	
 	public static final DefaultYamlValue<String> LEFT_CHAT_NOTIFICATION_REMINDER =
 		YamlValue.ofString("notifications.leave.reminder")
-			.defaults("&8&o(Reminder: you left the staff chat)");
+			.defaults("&8&o(Reminder: you left the %chat_name%)");
 	
 	public static final DefaultYamlValue<String> LEFT_CHAT_DISABLED_ERROR =
 		YamlValue.ofString("notifications.leave.disabled")
 			.defaults(
-				"%prefix% &6→&e You cannot leave the staff chat\n" +
-					"&8&oLeaving the staff chat is currently disabled"
+				"%prefix% &6->&e You cannot leave the %chat_name%\n" +
+					"&8&oLeaving the %chat_name% is currently disabled"
 			);
 	
 	public static final DefaultYamlValue<String> JOIN_CHAT_NOTIFICATION_SELF =
 		YamlValue.ofString("notifications.join.self")
 			.defaults(
-				"%prefix% &2→&a You &njoined&a the staff chat&r\n" +
-					"&8&oYou will now receive staff chat messages again"
+				"%prefix% &2->&a You &njoined&a the %chat_name%&r\n" +
+					"&8&oYou will now receive %chat_name% messages again"
 			);
 	
 	public static final DefaultYamlValue<String> JOIN_CHAT_NOTIFICATION_OTHERS =
 		YamlValue.ofString("notifications.join.others")
-			.defaults("%prefix% &2→&a %player% &njoined&a the staff chat");
+			.defaults("%prefix% &2->&a %player% &njoined&a the %chat_name%");
 	
 	public static final DefaultYamlValue<String> MUTE_SOUNDS_NOTIFICATION =
 		YamlValue.ofString("notifications.sounds.muted")
-			.defaults(
-				"%prefix% &4→&c You have &nmuted&c staff chat sounds"
-			);
+			.defaults("%prefix% &4->&c You have &nmuted&c %chat_name% sounds");
 	
 	public static final DefaultYamlValue<String> UNMUTE_SOUNDS_NOTIFICATION =
 		YamlValue.ofString("notifications.sounds.unmuted")
-			.defaults(
-				"%prefix% &2→&a You have &nunmuted&a staff chat sounds"
-			);
+			.defaults("%prefix% &2->&a You have &nunmuted&a %chat_name% sounds");
 	
 	@AggregatedResult
 	public static final List<YamlValue<?>> VALUES =
@@ -145,7 +142,6 @@ public class MessagesConfig extends YamlDataFile {
 				Configs.couldNotLoad(plugin.getLogger(), getFilePath());
 				plugin.debug(getClass()).log("Reload", () -> "Couldn't load: " + getInvalidReason());
 				
-				// Add default placeholders
 				if (definitions == null) {
 					definitions = new MappedPlaceholder();
 					definitions.map("prefix").to(PREFIX::getDefaultValue);
@@ -170,10 +166,8 @@ public class MessagesConfig extends YamlDataFile {
 				backupThenSave(plugin.backups(), "v" + existing);
 			}
 			
-			// Remove old placeholder definitions
 			definitions = null;
 			
-			// Load defined placeholders
 			Sections.get(data(), "placeholders").ifPresent(section ->
 			{
 				definitions = new MappedPlaceholder();
@@ -197,23 +191,30 @@ public class MessagesConfig extends YamlDataFile {
 		return placeholders;
 	}
 	
-	public MappedPlaceholder placeholders(Player player) {
+	public MappedPlaceholder placeholders(ChatChannel channel) {
 		MappedPlaceholder placeholders = placeholders();
-		
-		placeholders.map("user", "name", "username", "player", "sender").to(player::getName);
-		placeholders.map("nickname", "displayname").to(player::getDisplayName);
-		
+		placeholders.map("chat", "chat_key").to(channel::key);
+		placeholders.map("chat_label").to(channel::label);
+		placeholders.map("chat_name").to(channel::displayName);
+		placeholders.map("chat_channel").to(channel::discordChannelName);
 		return placeholders;
 	}
 	
-	private void sendNotification(Player player, String message) {
-		player.sendMessage(message);
-		plugin.config().playNotificationSound(player);
+	public MappedPlaceholder placeholders(Player player, ChatChannel channel) {
+		MappedPlaceholder placeholders = placeholders(channel);
+		placeholders.map("user", "name", "username", "player", "sender").to(player::getName);
+		placeholders.map("nickname", "displayname").to(player::getDisplayName);
+		return placeholders;
 	}
 	
-	private void sendNotification(Player player, DefaultYamlValue<String> self, @NullOr DefaultYamlValue<String> others) {
-		MappedPlaceholder placeholders = placeholders(player);
-		sendNotification(player, Strings.colorful(placeholders.update(getOrDefault(self))));
+	private void sendNotification(Player player, ChatChannel channel, String message) {
+		player.sendMessage(message);
+		plugin.config().playNotificationSound(player, channel);
+	}
+	
+	private void sendNotification(Player player, ChatChannel channel, DefaultYamlValue<String> self, @NullOr DefaultYamlValue<String> others) {
+		MappedPlaceholder placeholders = placeholders(player, channel);
+		sendNotification(player, channel, Strings.colorful(placeholders.update(getOrDefault(self))));
 		
 		if (others == null) {
 			return;
@@ -222,48 +223,44 @@ public class MessagesConfig extends YamlDataFile {
 		String notification = Strings.colorful(placeholders.update(getOrDefault(others)));
 		plugin.getServer().getConsoleSender().sendMessage(notification);
 		
-		plugin.onlineStaffChatParticipants()
+		plugin.onlineChatParticipants(channel)
 			.filter(Predicate.not(player::equals))
-			.forEach(staff -> sendNotification(staff, notification));
+			.forEach(staff -> sendNotification(staff, channel, notification));
 	}
 	
-	public void notifyAutoChatEnabled(Player enabler) {
-		sendNotification(enabler, AUTO_ENABLED_NOTIFICATION, null);
+	public void notifyAutoChatEnabled(Player enabler, ChatChannel channel) {
+		sendNotification(enabler, channel, AUTO_ENABLED_NOTIFICATION, null);
 	}
 	
-	public void notifyAutoChatDisabled(Player disabler) {
-		sendNotification(disabler, AUTO_DISABLED_NOTIFICATION, null);
+	public void notifyAutoChatDisabled(Player disabler, ChatChannel channel) {
+		sendNotification(disabler, channel, AUTO_DISABLED_NOTIFICATION, null);
 	}
 	
-	public void notifyLeaveChat(Player leaver, boolean notifyOthers) {
+	public void notifyLeaveChat(Player leaver, ChatChannel channel, boolean notifyOthers) {
 		@NullOr DefaultYamlValue<String> others = (notifyOthers) ? LEFT_CHAT_NOTIFICATION_OTHERS : null;
-		sendNotification(leaver, LEFT_CHAT_NOTIFICATION_SELF, others);
+		sendNotification(leaver, channel, LEFT_CHAT_NOTIFICATION_SELF, others);
 	}
 	
-	public void notifyLeavingChatIsDisabled(Player leaver) {
-		sendNotification(leaver, LEFT_CHAT_DISABLED_ERROR, null);
+	public void notifyLeavingChatIsDisabled(Player leaver, ChatChannel channel) {
+		sendNotification(leaver, channel, LEFT_CHAT_DISABLED_ERROR, null);
 	}
 	
-	public void notifyJoinChat(Player joiner, boolean notifyOthers) {
+	public void notifyJoinChat(Player joiner, ChatChannel channel, boolean notifyOthers) {
 		@NullOr DefaultYamlValue<String> others = (notifyOthers) ? JOIN_CHAT_NOTIFICATION_OTHERS : null;
-		sendNotification(joiner, JOIN_CHAT_NOTIFICATION_SELF, others);
+		sendNotification(joiner, channel, JOIN_CHAT_NOTIFICATION_SELF, others);
 	}
 	
-	public void notifySoundsMuted(Player player) {
-		sendNotification(player, MUTE_SOUNDS_NOTIFICATION, null);
+	public void notifySoundsMuted(Player player, ChatChannel channel) {
+		sendNotification(player, channel, MUTE_SOUNDS_NOTIFICATION, null);
 	}
 	
-	public void notifySoundsUnmuted(Player player) {
-		sendNotification(player, UNMUTE_SOUNDS_NOTIFICATION, null);
+	public void notifySoundsUnmuted(Player player, ChatChannel channel) {
+		sendNotification(player, channel, UNMUTE_SOUNDS_NOTIFICATION, null);
 	}
-	
-	//
-	//  Unconfigurable notifications
-	//
 	
 	public void notifyUpdateAvailable(Player manager, Version version) {
-		sendNotification(manager, Strings.colorful(
-			"&9DiscordSRV-&lStaff&9-&lChat&6 →&e Update available: &f" +
+		sendNotification(manager, ChatChannel.STAFF, Strings.colorful(
+			"&9DiscordSRV-&lStaff&9-&lChat&6 ->&e Update available: &f" +
 				version + " &6&o(" + plugin.version() + ")&r\n" + "&9&o&n" + Updater.RESOURCE_PAGE
 		));
 	}

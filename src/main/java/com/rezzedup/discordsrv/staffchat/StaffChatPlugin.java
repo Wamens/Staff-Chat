@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -58,11 +58,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, BukkitEventSource, StaffChatAPI {
-	// https://bstats.org/plugin/bukkit/DiscordSRV-Staff-Chat/11056
 	public static final int BSTATS = 11056;
-	
-	public static final String CHANNEL = "staff-chat";
-	
 	public static final String DISCORDSRV = "DiscordSRV";
 	
 	private @NullOr Version version;
@@ -79,10 +75,8 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 	@Override
 	public void onEnable() {
 		this.version = Version.valueOf(getDescription().getVersion());
-		
 		this.pluginDirectoryPath = getDataFolder().toPath();
 		this.backupsDirectoryPath = pluginDirectoryPath.resolve("backups");
-		
 		this.debugger = new Debugger(this);
 		
 		debug(getClass()).header(() -> "Starting Plugin: " + this);
@@ -101,14 +95,15 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 		events().register(new PlayerPrefixedMessageListener(this));
 		events().register(new PlayerStaffChatToggleListener(this));
 		
-		
-		command("staffchat", new StaffChatCommand(this));
+		command("staffchat", new StaffChatCommand(this, ChatChannel.STAFF));
+		command("adminchat", new StaffChatCommand(this, ChatChannel.ADMIN));
 		command("managestaffchat", new ManageStaffChatCommand(this));
-		command("togglestaffchatsounds", new ToggleStaffChatSoundsCommand(this));
-		
-		ToggleStaffChatCommand toggle = new ToggleStaffChatCommand(this);
-		command("leavestaffchat", toggle);
-		command("joinstaffchat", toggle);
+		command("togglestaffchatsounds", new ToggleStaffChatSoundsCommand(this, ChatChannel.STAFF));
+		command("toggleadminchatsounds", new ToggleStaffChatSoundsCommand(this, ChatChannel.ADMIN));
+		command("leavestaffchat", new ToggleStaffChatCommand(this, ChatChannel.STAFF, false));
+		command("joinstaffchat", new ToggleStaffChatCommand(this, ChatChannel.STAFF, true));
+		command("leaveadminchat", new ToggleStaffChatCommand(this, ChatChannel.ADMIN, false));
+		command("joinadminchat", new ToggleStaffChatCommand(this, ChatChannel.ADMIN, true));
 		
 		@NullOr Plugin discordSrv = getServer().getPluginManager().getPlugin(DISCORDSRV);
 		
@@ -117,21 +112,18 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 			subscribeToDiscordSrv(discordSrv);
 		} else {
 			debug(getClass()).log("Enable", () -> "DiscordSRV is not enabled: continuing without discord support");
-			
 			getLogger().warning("DiscordSRV is not currently enabled (messages will NOT be sent to Discord).");
-			getLogger().warning("Staff chat messages will still work in-game, however.");
-			
-			// Subscribe to DiscordSRV later because it somehow hasn't enabled yet.
+			getLogger().warning("Staff and admin chat messages will still work in-game, however.");
 			events().register(new DiscordSrvLoadedLaterListener(this));
 		}
 		
 		startMetrics();
 		
-		// Display toggle message so that auto staff-chat users are aware that their chat is private again.
-		// Useful when hot loading this plugin on a live server.
-		onlineStaffChatParticipants()
-			.filter(data()::isAutomaticStaffChatEnabled)
-			.forEach(messages()::notifyAutoChatEnabled);
+		for (ChatChannel channel : ChatChannel.values()) {
+			onlineChatParticipants(channel)
+				.filter(player -> data().isAutomaticChatEnabled(player, channel))
+				.forEach(player -> messages().notifyAutoChatEnabled(player, channel));
+		}
 	}
 	
 	@Override
@@ -141,11 +133,11 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 		data().end();
 		updater().end();
 		
-		// Display toggle message so that auto staff-chat users are aware that their chat is public again.
-		// Useful when selectively disabling this plugin on a live server.
-		onlineStaffChatParticipants()
-			.filter(data()::isAutomaticStaffChatEnabled)
-			.forEach(messages()::notifyAutoChatDisabled);
+		for (ChatChannel channel : ChatChannel.values()) {
+			onlineChatParticipants(channel)
+				.filter(player -> data().isAutomaticChatEnabled(player, channel))
+				.forEach(player -> messages().notifyAutoChatDisabled(player, channel));
+		}
 		
 		if (isDiscordSrvHookEnabled()) {
 			debug(getClass()).log("Disable", () -> "Unsubscribing from DiscordSRV API (hook is enabled)");
@@ -153,7 +145,7 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 			try {
 				DiscordSRV.api.unsubscribe(discordSrvHook);
 			} catch (RuntimeException ignored) {
-			} // Don't show a user-facing error if DiscordSRV is already unloaded.
+			}
 		}
 		
 		debug(getClass()).header(() -> "Disabled Plugin: " + this);
@@ -227,14 +219,13 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 		}
 		
 		DiscordSRV.api.subscribe(discordSrvHook = new DiscordStaffChatListener(this));
-		
 		getLogger().info("Subscribed to DiscordSRV: messages will be sent to Discord");
 	}
 	
 	@Override
-	public @NullOr TextChannel getDiscordChannelOrNull() {
+	public @NullOr TextChannel getDiscordChannelOrNull(ChatChannel channel) {
 		return (isDiscordSrvHookEnabled())
-			? DiscordSRV.getPlugin().getDestinationTextChannelForGameChannelName(CHANNEL)
+			? DiscordSRV.getPlugin().getDestinationTextChannelForGameChannelName(channel.discordChannelName())
 			: null;
 	}
 	
@@ -243,30 +234,23 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 	}
 	
 	@Override
-	public void submitMessageFromConsole(String message) {
-		processor().processConsoleChat(message);
+	public void submitMessageFromConsole(String message, ChatChannel channel) {
+		processor().processConsoleChat(message, channel);
 	}
 	
 	@Override
-	public void submitMessageFromPlayer(Player author, String message) {
-		processor().processPlayerChat(author, message);
+	public void submitMessageFromPlayer(Player author, String message, ChatChannel channel) {
+		processor().processPlayerChat(author, message, channel);
 	}
 	
 	@Override
-	public void submitMessageFromDiscord(User author, Message message) {
-		processor().processDiscordChat(author, message);
+	public void submitMessageFromDiscord(User author, Message message, ChatChannel channel) {
+		processor().processDiscordChat(author, message, channel);
 	}
-	
-	//
-	//
-	//
 	
 	private void loadConfigurationFiles() {
-		// Explicitly load configs
 		config().reload();
 		messages().reload();
-		
-		// Upgrade & migrate legacy config if it exists
 		upgradeLegacyConfig();
 	}
 	
@@ -331,7 +315,6 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 		
 		debug(getClass()).log("Metrics", () -> "Scheduling metrics to start one minute from now");
 		
-		// Start a minute later to get the most accurate data.
 		sync().delay(1).minutes().run(() ->
 		{
 			Metrics metrics = new Metrics(this, BSTATS);
@@ -341,7 +324,11 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 			));
 			
 			metrics.addCustomChart(new SimplePie(
-				"has_valid_staff-chat_channel", () -> String.valueOf(getDiscordChannelOrNull() != null)
+				"has_valid_staff-chat_channel", () -> String.valueOf(getDiscordChannelOrNull(ChatChannel.STAFF) != null)
+			));
+			
+			metrics.addCustomChart(new SimplePie(
+				"has_valid_admin-chat_channel", () -> String.valueOf(getDiscordChannelOrNull(ChatChannel.ADMIN) != null)
 			));
 			
 			debug(getClass()).log("Metrics", () -> "Started bStats metrics");

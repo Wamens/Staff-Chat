@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.listeners;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.Permissions;
 import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
 import com.rezzedup.discordsrv.staffchat.config.StaffChatConfig;
@@ -109,6 +110,6 @@ public class PlayerPrefixedMessageListener implements Listener {
 		);
 		
 		// Handle this on the main thread next tick.
-		plugin.sync().run(() -> plugin.submitMessageFromPlayer(player, submission));
+		plugin.sync().run(() -> plugin.submitMessageFromPlayer(player, submission, ChatChannel.STAFF));
 	}
 }

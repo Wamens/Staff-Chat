@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,6 +22,7 @@
  */
 package com.rezzedup.discordsrv.staffchat.events;
 
+import com.rezzedup.discordsrv.staffchat.ChatChannel;
 import com.rezzedup.discordsrv.staffchat.StaffChatProfile;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.Event;
@@ -30,17 +31,23 @@ import java.util.Objects;
 
 public abstract class ProfileToggleEvent extends Event implements Cancellable {
 	private final StaffChatProfile profile;
+	private final ChatChannel channel;
 	private final boolean toggleState;
 	
 	private boolean isQuiet = false;
 	
-	public ProfileToggleEvent(StaffChatProfile profile, boolean toggleState) {
+	public ProfileToggleEvent(StaffChatProfile profile, ChatChannel channel, boolean toggleState) {
 		this.profile = Objects.requireNonNull(profile, "profile");
+		this.channel = Objects.requireNonNull(channel, "channel");
 		this.toggleState = toggleState;
 	}
 	
 	public StaffChatProfile getProfile() {
 		return profile;
+	}
+	
+	public ChatChannel getChannel() {
+		return channel;
 	}
 	
 	public boolean getToggleState() {

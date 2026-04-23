@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -39,16 +39,24 @@ public interface StaffChatData {
 	default Optional<StaffChatProfile> getProfile(Player player) {
 		// If they're a staff member, then they will always have a profile
 		// otherwise, return the possibly existing profile for non-staff
-		return (Permissions.ACCESS.allows(player))
+		return (Permissions.ACCESS.allows(player) || Permissions.ADMIN.allows(player))
 			? Optional.of(getOrCreateProfile(player.getUniqueId()))
 			: getProfile(player.getUniqueId());
 	}
 	
+	default boolean isAutomaticChatEnabled(Player player, ChatChannel channel) {
+		return getProfile(player).filter(profile -> profile.automaticStaffChat(channel)).isPresent();
+	}
+	
+	default boolean isReceivingChatMessages(Player player, ChatChannel channel) {
+		return getProfile(player).filter(profile -> profile.receivesStaffChatMessages(channel)).isPresent();
+	}
+	
 	default boolean isAutomaticStaffChatEnabled(Player player) {
-		return getProfile(player).filter(StaffChatProfile::automaticStaffChat).isPresent();
+		return isAutomaticChatEnabled(player, ChatChannel.STAFF);
 	}
 	
 	default boolean isReceivingStaffChatMessages(Player player) {
-		return getProfile(player).filter(StaffChatProfile::receivesStaffChatMessages).isPresent();
+		return isReceivingChatMessages(player, ChatChannel.STAFF);
 	}
 }

@@ -1,6 +1,6 @@
 /*
  * The MIT License
- * Copyright © 2017-2024 RezzedUp and Contributors
+ * Copyright © 2017-2026 RezzedUp and Contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -55,8 +55,12 @@ public class MessageProcessor {
 		this.plugin = plugin;
 	}
 	
-	private void sendFormattedChatMessage(@NullOr Object author, DefaultYamlValue<String> format, MappedPlaceholder placeholders) {
-		// If the value of %message% doesn't exist for some reason, don't announce.
+	private void sendFormattedChatMessage(
+		@NullOr Object author,
+		ChatChannel channel,
+		DefaultYamlValue<String> format,
+		MappedPlaceholder placeholders
+	) {
 		if (Strings.isEmptyOrNull(placeholders.get("message"))) {
 			return;
 		}
@@ -64,8 +68,6 @@ public class MessageProcessor {
 		String formatted = plugin.messages().getOrDefault(format);
 		
 		if (plugin.getServer().getPluginManager().isPluginEnabled("PlaceholderAPI")) {
-			// Update format's PAPI placeholders before inserting the message
-			// (which *could* contain arbitrary placeholders itself, ah placeholder injection).
 			@NullOr Player player = (author instanceof Player) ? (Player) author : null;
 			formatted = PlaceholderAPI.setPlaceholders(player, formatted);
 		}
@@ -76,68 +78,67 @@ public class MessageProcessor {
 			Player player = (Player) author;
 			StaffChatProfile profile = plugin.data().getOrCreateProfile(player);
 			
-			// Author left the staff chat but is sending a message there...
-			if (!profile.receivesStaffChatMessages()) {
+			if (!profile.receivesStaffChatMessages(channel)) {
 				String reminder = Strings.colorful(placeholders.update(
 					plugin.messages().getOrDefault(MessagesConfig.LEFT_CHAT_NOTIFICATION_REMINDER))
 				);
 				
 				player.sendMessage(content);
 				player.sendMessage(reminder);
-				
-				plugin.config().playNotificationSound(player);
+				plugin.config().playNotificationSound(player, channel);
 			}
 		}
 		
-		plugin.onlineStaffChatParticipants().forEach(staff -> {
+		plugin.onlineChatParticipants(channel).forEach(staff -> {
 			staff.sendMessage(content);
-			plugin.config().playMessageSound(staff);
+			plugin.config().playMessageSound(staff, channel);
 		});
 		
 		plugin.getServer().getConsoleSender().sendMessage(content);
 	}
 	
-	private void sendToDiscord(Consumer<TextChannel> sender) {
-		@NullOr TextChannel channel = plugin.getDiscordChannelOrNull();
+	private void sendToDiscord(ChatChannel chatChannel, Consumer<TextChannel> sender) {
+		@NullOr TextChannel channel = plugin.getDiscordChannelOrNull(chatChannel);
 		
 		if (channel == null) {
 			plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
-				"Unable to send message to discord: " + StaffChatPlugin.CHANNEL + " => null"
+				"Unable to send message to discord: " + chatChannel.discordChannelName() + " => null"
 			);
 			return;
 		}
 		
 		plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
-			"Sending message to discord channel: " + StaffChatPlugin.CHANNEL + " => " + channel
+			"Sending message to discord channel: " + chatChannel.discordChannelName() + " => " + channel
 		);
 		
 		sender.accept(channel);
 	}
 	
-	public void processConsoleChat(String message) {
+	public void processConsoleChat(String message, ChatChannel channel) {
 		Objects.requireNonNull(message, "message");
+		Objects.requireNonNull(channel, "channel");
 		
 		plugin.debug(getClass()).logConsoleChatMessage(message);
 		
 		ConsoleStaffChatMessageEvent event =
-			plugin.events().call(new ConsoleStaffChatMessageEvent(message));
+			plugin.events().call(new ConsoleStaffChatMessageEvent(channel, message));
 		
 		if (event.isCancelled() || event.getText().isEmpty()) {
 			plugin.debug(getClass()).log(ChatService.MINECRAFT, event, () -> "Cancelled or text is empty");
 			return;
 		}
 		
-		MappedPlaceholder placeholders = plugin.messages().placeholders();
+		MappedPlaceholder placeholders = plugin.messages().placeholders(channel);
 		placeholders.map("message", "content", "text").to(event::getText);
 		
-		sendFormattedChatMessage(null, MessagesConfig.IN_GAME_CONSOLE_FORMAT, placeholders);
+		sendFormattedChatMessage(null, channel, MessagesConfig.IN_GAME_CONSOLE_FORMAT, placeholders);
 		
 		if (plugin.isDiscordSrvHookEnabled()) {
 			String discordMessage = placeholders.update(
 				plugin.messages().getOrDefault(MessagesConfig.DISCORD_CONSOLE_FORMAT)
 			);
 			
-			sendToDiscord(channel -> DiscordUtil.queueMessage(channel, discordMessage, true));
+			sendToDiscord(channel, discord -> DiscordUtil.queueMessage(discord, discordMessage, true));
 		} else {
 			plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
 				"DiscordSRV hook is not enabled, cannot send to discord"
@@ -145,32 +146,30 @@ public class MessageProcessor {
 		}
 	}
 	
-	public void processPlayerChat(Player author, String message) {
+	public void processPlayerChat(Player author, String message, ChatChannel channel) {
 		Objects.requireNonNull(author, "author");
 		Objects.requireNonNull(message, "message");
+		Objects.requireNonNull(channel, "channel");
 		
 		plugin.debug(getClass()).logPlayerChatMessage(author, message);
 		
 		PlayerStaffChatMessageEvent event =
-			plugin.events().call(new PlayerStaffChatMessageEvent(author, message));
+			plugin.events().call(new PlayerStaffChatMessageEvent(author, channel, message));
 		
 		if (event.isCancelled() || event.getText().isEmpty()) {
 			plugin.debug(getClass()).log(ChatService.MINECRAFT, event, () -> "Cancelled or text is empty");
 			return;
 		}
 		
-		MappedPlaceholder placeholders = plugin.messages().placeholders(author);
+		MappedPlaceholder placeholders = plugin.messages().placeholders(author, channel);
 		placeholders.map("message", "content", "text").to(event::getText);
 		
-		sendFormattedChatMessage(author, MessagesConfig.IN_GAME_PLAYER_FORMAT, placeholders);
+		sendFormattedChatMessage(author, channel, MessagesConfig.IN_GAME_PLAYER_FORMAT, placeholders);
 		
 		if (plugin.isDiscordSrvHookEnabled()) {
-			sendToDiscord(channel -> {
-				// Send to discord off the main thread (just like DiscordSRV does)
-				plugin.async().run(() ->
-					DiscordSRV.getPlugin().processChatMessage(author, message, StaffChatPlugin.CHANNEL, false)
-				);
-			});
+			sendToDiscord(channel, discord -> plugin.async().run(() ->
+				DiscordSRV.getPlugin().processChatMessage(author, event.getText(), channel.discordChannelName(), false)
+			));
 		} else {
 			plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
 				"DiscordSRV hook is not enabled, cannot send to discord"
@@ -178,24 +177,23 @@ public class MessageProcessor {
 		}
 	}
 	
-	public void processDiscordChat(User author, Message message) {
+	public void processDiscordChat(User author, Message message, ChatChannel channel) {
 		Objects.requireNonNull(author, "author");
 		Objects.requireNonNull(message, "message");
+		Objects.requireNonNull(channel, "channel");
 		
 		plugin.debug(getClass()).logDiscordChatMessage(author, message);
 		
 		DiscordStaffChatMessageEvent event =
-			plugin.events().call(new DiscordStaffChatMessageEvent(author, message, message.getContentStripped()));
+			plugin.events().call(new DiscordStaffChatMessageEvent(author, message, channel, message.getContentStripped()));
 		
 		if (event.isCancelled() || event.getText().isEmpty()) {
 			plugin.debug(getClass()).log(ChatService.DISCORD, "Message", () -> "Cancelled or text is empty");
 			return;
 		}
 		
-		// Emoji Unicode -> Alias (library included with DiscordSRV)
 		String text = EmojiParser.parseToAliases(event.getText());
-		
-		MappedPlaceholder placeholders = plugin.messages().placeholders();
+		MappedPlaceholder placeholders = plugin.messages().placeholders(channel);
 		
 		placeholders.map("message", "content", "text").to(() -> text);
 		placeholders.map("user", "name", "username", "sender").to(author::getName);
@@ -206,9 +204,6 @@ public class MessageProcessor {
 		if (member != null) {
 			placeholders.map("nickname", "displayname").to(member::getEffectiveName);
 			
-			// Simulate placeholders from DiscordSRV:
-			// https://github.com/DiscordSRV/DiscordSRV/blob/1d08598206b1af5dcc29e411cead8e152e4c3f94/src/main/java/github/scarsz/discordsrv/listeners/DiscordChatListener.java#L293
-			
 			DiscordSRV discordSrv = DiscordSRV.getPlugin();
 			List<Role> selectedRoles = discordSrv.getSelectedRoles(member);
 			@NullOr Role topRole = (selectedRoles.isEmpty()) ? null : selectedRoles.get(0);
@@ -216,7 +211,6 @@ public class MessageProcessor {
 			if (topRole != null) {
 				placeholders.map("toprole").to(topRole::getName);
 				placeholders.map("toproleinitial").to(() -> topRole.getName().substring(0, 1));
-				
 				placeholders.map("toprolealias").to(() ->
 					discordSrv.getRoleAliases().getOrDefault(
 						topRole.getId(),
@@ -226,12 +220,11 @@ public class MessageProcessor {
 						)
 					)
 				);
-				
 				placeholders.map("toprolecolor").to(() -> ChatColor.of(new Color(topRole.getColorRaw())));
 				placeholders.map("allroles").to(() -> DiscordUtil.getFormattedRoles(selectedRoles));
 			}
 		}
 		
-		sendFormattedChatMessage(author, MessagesConfig.IN_GAME_DISCORD_FORMAT, placeholders);
+		sendFormattedChatMessage(author, channel, MessagesConfig.IN_GAME_DISCORD_FORMAT, placeholders);
 	}
 }
