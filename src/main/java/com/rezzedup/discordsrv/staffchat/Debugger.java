@@ -94,7 +94,7 @@ public class Debugger {
 	
 	private void record(String message) {
 		if (isEnabled) {
-			printThenWriteToLogFile(message);
+			plugin.async().run(() -> printThenWriteToLogFile(message));
 		}
 	}
 	

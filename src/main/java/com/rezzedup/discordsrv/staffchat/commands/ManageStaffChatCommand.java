@@ -127,13 +127,7 @@ public class ManageStaffChatCommand implements CommandExecutor, TabCompleter {
 	}
 	
 	private void reload(CommandSender sender) {
-		plugin.debug(getClass()).log("Reload", () -> "Reloading configs and data...");
-		
-		plugin.config().reload();
-		plugin.messages().reload();
-		plugin.data().reload();
-		plugin.updater().reload();
-		
+		plugin.reloadRuntime();
 		sender.sendMessage(colorful("&9&lDiscordSRV-Staff-Chat&f: Reloaded."));
 	}
 	

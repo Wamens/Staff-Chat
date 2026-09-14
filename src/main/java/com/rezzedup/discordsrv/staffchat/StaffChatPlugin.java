@@ -30,7 +30,6 @@ import com.rezzedup.discordsrv.staffchat.commands.ToggleStaffChatSoundsCommand;
 import com.rezzedup.discordsrv.staffchat.config.MessagesConfig;
 import com.rezzedup.discordsrv.staffchat.config.StaffChatConfig;
 import com.rezzedup.discordsrv.staffchat.listeners.DiscordSrvLoadedLaterListener;
-import com.rezzedup.discordsrv.staffchat.listeners.DiscordStaffChatListener;
 import com.rezzedup.discordsrv.staffchat.listeners.JoinNotificationListener;
 import com.rezzedup.discordsrv.staffchat.listeners.PlayerPrefixedMessageListener;
 import com.rezzedup.discordsrv.staffchat.listeners.PlayerStaffChatToggleListener;
@@ -39,7 +38,6 @@ import community.leaf.configvalues.bukkit.YamlValue;
 import community.leaf.configvalues.bukkit.data.YamlDataFile;
 import community.leaf.eventful.bukkit.BukkitEventSource;
 import community.leaf.tasks.bukkit.BukkitTaskSource;
-import github.scarsz.discordsrv.DiscordSRV;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.Message;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.User;
@@ -68,9 +66,9 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 	private @NullOr StaffChatConfig config;
 	private @NullOr MessagesConfig messages;
 	private @NullOr Data data;
+	private @NullOr DiscordBridge discordBridge;
 	private @NullOr Updater updater;
 	private @NullOr MessageProcessor processor;
-	private @NullOr DiscordStaffChatListener discordSrvHook;
 	
 	@Override
 	public void onEnable() {
@@ -88,6 +86,7 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 		loadConfigurationFiles();
 		
 		this.data = new Data(this);
+		this.discordBridge = new DiscordBridge(this);
 		this.updater = new Updater(this);
 		this.processor = new MessageProcessor(this);
 		
@@ -139,14 +138,7 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 				.forEach(player -> messages().notifyAutoChatDisabled(player, channel));
 		}
 		
-		if (isDiscordSrvHookEnabled()) {
-			debug(getClass()).log("Disable", () -> "Unsubscribing from DiscordSRV API (hook is enabled)");
-			
-			try {
-				DiscordSRV.api.unsubscribe(discordSrvHook);
-			} catch (RuntimeException ignored) {
-			}
-		}
+		discordBridge().unsubscribe();
 		
 		debug(getClass()).header(() -> "Disabled Plugin: " + this);
 	}
@@ -200,33 +192,27 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 		return initialized(updater);
 	}
 	
+	public DiscordBridge discordBridge() {
+		return initialized(discordBridge);
+	}
+	
 	@Override
 	public boolean isDiscordSrvHookEnabled() {
-		return discordSrvHook != null;
+		return discordBridge().isReady();
+	}
+	
+	public DiscordHookState discordHookState() {
+		return discordBridge().state();
 	}
 	
 	public void subscribeToDiscordSrv(Plugin plugin) {
 		debug(getClass()).log("Subscribe", () -> "Subscribing to DiscordSRV: " + plugin);
-		
-		if (!DISCORDSRV.equals(plugin.getName()) || !(plugin instanceof DiscordSRV)) {
-			throw debug(getClass()).failure("Subscribe", new IllegalArgumentException("Not DiscordSRV: " + plugin));
-		}
-		
-		if (isDiscordSrvHookEnabled()) {
-			throw debug(getClass()).failure("Subscribe", new IllegalStateException(
-				"Already subscribed to DiscordSRV. Did the server reload? ... If so, don't do that!"
-			));
-		}
-		
-		DiscordSRV.api.subscribe(discordSrvHook = new DiscordStaffChatListener(this));
-		getLogger().info("Subscribed to DiscordSRV: messages will be sent to Discord");
+		discordBridge().subscribe(plugin);
 	}
 	
 	@Override
 	public @NullOr TextChannel getDiscordChannelOrNull(ChatChannel channel) {
-		return (isDiscordSrvHookEnabled())
-			? DiscordSRV.getPlugin().getDestinationTextChannelForGameChannelName(channel.discordChannelName())
-			: null;
+		return discordBridge().getChannelOrNull(channel);
 	}
 	
 	private MessageProcessor processor() {
@@ -252,6 +238,16 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 		config().reload();
 		messages().reload();
 		upgradeLegacyConfig();
+	}
+	
+	public void reloadRuntime() {
+		debug(getClass()).log("Reload", () -> "Reloading configs and data...");
+		
+		config().reload();
+		messages().reload();
+		data().reload();
+		updater().reload();
+		discordBridge().refreshChannels();
 	}
 	
 	private void upgradeLegacyConfig(YamlDataFile file, List<YamlValue<?>> values) {
@@ -320,7 +316,7 @@ public class StaffChatPlugin extends JavaPlugin implements BukkitTaskSource, Buk
 			Metrics metrics = new Metrics(this, BSTATS);
 			
 			metrics.addCustomChart(new SimplePie(
-				"hooked_into_discordsrv", () -> String.valueOf(isDiscordSrvHookEnabled())
+				"hooked_into_discordsrv", () -> discordHookState().name()
 			));
 			
 			metrics.addCustomChart(new SimplePie(

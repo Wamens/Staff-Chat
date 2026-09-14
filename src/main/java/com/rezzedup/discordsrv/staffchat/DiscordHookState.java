@@ -20,22 +20,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-package com.rezzedup.discordsrv.staffchat.listeners;
+package com.rezzedup.discordsrv.staffchat;
 
-import com.rezzedup.discordsrv.staffchat.StaffChatPlugin;
-import github.scarsz.discordsrv.api.Subscribe;
-import github.scarsz.discordsrv.api.events.DiscordGuildMessagePreProcessEvent;
-
-@SuppressWarnings("unused")
-public class DiscordStaffChatListener {
-	private final StaffChatPlugin plugin;
-	
-	public DiscordStaffChatListener(StaffChatPlugin plugin) {
-		this.plugin = plugin;
-	}
-	
-	@Subscribe
-	public void onDiscordChat(DiscordGuildMessagePreProcessEvent event) {
-		plugin.discordBridge().handleDiscordMessage(event);
-	}
+public enum DiscordHookState {
+	UNAVAILABLE,
+	INITIALIZING,
+	READY,
+	DEGRADED,
+	FAILED
 }

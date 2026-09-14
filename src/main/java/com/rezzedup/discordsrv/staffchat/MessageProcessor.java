@@ -33,7 +33,6 @@ import github.scarsz.discordsrv.dependencies.emoji.EmojiParser;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.Member;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.Message;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.Role;
-import github.scarsz.discordsrv.dependencies.jda.api.entities.TextChannel;
 import github.scarsz.discordsrv.dependencies.jda.api.entities.User;
 import github.scarsz.discordsrv.util.DiscordUtil;
 import me.clip.placeholderapi.PlaceholderAPI;
@@ -45,7 +44,6 @@ import java.awt.*;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.function.Consumer;
 
 public class MessageProcessor {
 	private final StaffChatPlugin plugin;
@@ -96,23 +94,6 @@ public class MessageProcessor {
 		plugin.getServer().getConsoleSender().sendMessage(content);
 	}
 	
-	private void sendToDiscord(ChatChannel chatChannel, Consumer<TextChannel> sender) {
-		@NullOr TextChannel channel = plugin.getDiscordChannelOrNull(chatChannel);
-		
-		if (channel == null) {
-			plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
-				"Unable to send message to discord: " + chatChannel.discordChannelName() + " => null"
-			);
-			return;
-		}
-		
-		plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
-			"Sending message to discord channel: " + chatChannel.discordChannelName() + " => " + channel
-		);
-		
-		sender.accept(channel);
-	}
-	
 	public void processConsoleChat(String message, ChatChannel channel) {
 		Objects.requireNonNull(message, "message");
 		Objects.requireNonNull(channel, "channel");
@@ -137,7 +118,7 @@ public class MessageProcessor {
 				plugin.messages().getDiscordConsoleFormat(channel)
 			);
 			
-			sendToDiscord(channel, discord -> DiscordUtil.queueMessage(discord, discordMessage, true));
+			plugin.discordBridge().sendConsoleMessage(channel, discordMessage);
 		} else {
 			plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
 				"DiscordSRV hook is not enabled, cannot send to discord"
@@ -166,9 +147,7 @@ public class MessageProcessor {
 		sendFormattedChatMessage(author, channel, plugin.messages().getInGamePlayerFormat(channel), placeholders);
 		
 		if (plugin.isDiscordSrvHookEnabled()) {
-			sendToDiscord(channel, discord -> plugin.async().run(() ->
-				DiscordSRV.getPlugin().processChatMessage(author, event.getText(), channel.discordChannelName(), false)
-			));
+			plugin.discordBridge().sendPlayerMessage(author, channel, event.getText());
 		} else {
 			plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
 				"DiscordSRV hook is not enabled, cannot send to discord"
