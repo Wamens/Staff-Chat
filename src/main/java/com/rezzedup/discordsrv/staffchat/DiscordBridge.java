@@ -173,16 +173,23 @@ public class DiscordBridge {
 		@NullOr TextChannel channel = getChannelOrNull(chatChannel);
 		
 		if (channel == null) {
-			warnMissingChannel(chatChannel);
-			return;
+			channel = resolve(chatChannel).orElse(null);
+			
+			if (channel == null) {
+				warnMissingChannel(chatChannel);
+				return;
+			}
+			
+			channels.put(chatChannel, channel);
 		}
+		TextChannel resolvedChannel = channel;
 		
 		plugin.debug(getClass()).log(ChatService.MINECRAFT, "Message", () ->
-			"Sending message to discord channel: " + chatChannel.discordChannelName() + " => " + channel
+			"Sending message to discord channel: " + chatChannel.discordChannelName() + " => " + resolvedChannel
 		);
 		
 		try {
-			sender.send(channel);
+			sender.send(resolvedChannel);
 		} catch (RuntimeException exception) {
 			state = DiscordHookState.DEGRADED;
 			plugin.debug(getClass()).logException("Discord Relay", exception);
@@ -212,8 +219,8 @@ public class DiscordBridge {
 		
 		lastChannelWarnings.put(channel, now);
 		plugin.getLogger().warning(
-			channel.label() + " Discord channel '" + channel.discordChannelName() +
-				"' could not be resolved. Discord relay is temporarily disabled for that chat."
+			channel.label() + " DiscordSRV channel mapping '" + channel.discordChannelName() +
+				"' could not be resolved. Add it to DiscordSRV's Channels config, then run /discord reload and /managestaffchat reload."
 		);
 	}
 	
