@@ -88,7 +88,7 @@ public class DiscordBridge {
 		
 		try {
 			DiscordSRV.api.unsubscribe(listener);
-		} catch (RuntimeException exception) {
+		} catch (Throwable exception) {
 			plugin.debug(getClass()).logException("Unsubscribe", exception);
 		} finally {
 			listener = null;
@@ -161,7 +161,7 @@ public class DiscordBridge {
 					chatChannel.discordChannelName(),
 					false
 				);
-			} catch (RuntimeException exception) {
+			} catch (Throwable exception) {
 				state = DiscordHookState.DEGRADED;
 				plugin.debug(getClass()).logException("Discord Relay", exception);
 				plugin.getLogger().warning("Unable to relay " + chatChannel.displayName() + " to Discord: " + exception.getMessage());
@@ -190,7 +190,7 @@ public class DiscordBridge {
 		
 		try {
 			sender.send(resolvedChannel);
-		} catch (RuntimeException exception) {
+		} catch (Throwable exception) {
 			state = DiscordHookState.DEGRADED;
 			plugin.debug(getClass()).logException("Discord Relay", exception);
 			plugin.getLogger().warning("Unable to relay " + chatChannel.displayName() + " to Discord: " + exception.getMessage());
@@ -212,7 +212,7 @@ public class DiscordBridge {
 			}
 			
 			return Optional.ofNullable(discordSrv.getJda().getTextChannelById(channelId));
-		} catch (RuntimeException exception) {
+		} catch (Throwable exception) {
 			state = DiscordHookState.DEGRADED;
 			plugin.debug(getClass()).logException("Channel Resolve", exception);
 			return Optional.empty();
