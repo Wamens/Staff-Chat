@@ -199,9 +199,19 @@ public class DiscordBridge {
 	
 	private Optional<TextChannel> resolve(ChatChannel channel) {
 		try {
-			return Optional.ofNullable(
-				DiscordSRV.getPlugin().getDestinationTextChannelForGameChannelName(channel.discordChannelName())
-			);
+			DiscordSRV discordSrv = DiscordSRV.getPlugin();
+			@NullOr TextChannel resolved = discordSrv.getDestinationTextChannelForGameChannelName(channel.discordChannelName());
+			
+			if (resolved != null) {
+				return Optional.of(resolved);
+			}
+			
+			@NullOr String channelId = discordSrv.getChannels().get(channel.discordChannelName());
+			if (channelId == null || channelId.isBlank()) {
+				return Optional.empty();
+			}
+			
+			return Optional.ofNullable(discordSrv.getJda().getTextChannelById(channelId));
 		} catch (RuntimeException exception) {
 			state = DiscordHookState.DEGRADED;
 			plugin.debug(getClass()).logException("Channel Resolve", exception);
